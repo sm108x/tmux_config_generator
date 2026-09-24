@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tmux-config-generator"
+version = "0.1.0"
+description = "GTK 4 GUI for generating tmux configuration files"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["PyGObject>=3.42"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.gui-scripts]
+tmux-config-generator = "tmux_config_generator.app:main"
+
+[tool.setuptools.packages.find]
+include = ["tmux_config_generator*"]
