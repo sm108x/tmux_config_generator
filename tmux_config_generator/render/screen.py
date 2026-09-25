@@ -695,3 +695,48 @@ def scene_for_option(name: str) -> str | None:
     if name.startswith("visual-"):
         return "alerts"
     return None
+
+
+# ---------------------------------------------------------------------------
+# Small renders used by the format builder
+
+
+def status_lines(values: dict) -> int:
+    status = str(values.get("status", "on"))
+    if status == "off":
+        return 1  # still show the line being edited
+    return int(status) if status.isdigit() else 1
+
+
+def build_status_screen(values: dict, cols: int, now=None) -> Screen:
+    """Just the status line(s), as tmux would draw them."""
+    b = SceneBuilder(values, "normal", cols, status_lines(values), now)
+    for i in range(b.scr.rows):
+        b.draw_status_line(i, i)
+    return b.scr
+
+
+def build_border_screen(values: dict, cols: int, now=None) -> Screen:
+    """A pane border status line for the active pane."""
+    b = SceneBuilder(values, "normal", cols, 1, now)
+    ctx = b.ctx.child(**b._pane_vars(0, True, cols, 20))
+    style = styled(DEFAULT, expand(str(values.get("pane-active-border-style", "default")), ctx))
+    kind = str(values.get("pane-border-lines", "single"))
+    line = LINES.get(kind, LINES["single"])["h"] if kind != "number" else str(b.pane_base)
+    b.scr.put(0, 0, line * cols, style)
+    rs = clip_runs(runs(expand_time(str(values.get("pane-border-format", "")), ctx), style),
+                   max(0, cols - 4))
+    b.scr.put_runs(2, 0, rs)
+    return b.scr
+
+
+def build_text_screen(values: dict, fmt: str, cols: int, now=None) -> Screen:
+    """A format expanded in the sample session, drawn on the default style."""
+    b = SceneBuilder(values, "normal", cols, 1, now)
+    b.scr.put_runs(0, 0, runs(expand_time(fmt, b.ctx), DEFAULT))
+    return b.scr
+
+
+def sample_context(values: dict, now=None) -> Context:
+    """The sample session's format context (current window, active pane)."""
+    return SceneBuilder(values, "normal", 10, 1, now).ctx

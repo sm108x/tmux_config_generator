@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from gi.repository import Gtk
+from gi.repository import GLib, Gtk
 
 from ..config import INDEX_ONLY, Config
 from ..options import Option, options_in
@@ -10,6 +10,7 @@ from ..render.screen import effective_values, scene_for_option
 from ..styles import parse_style
 from .colour import ColourButton, ColourEntry
 from .dialogs import KeyCaptureDialog, StyleDialog
+from .format_builder import FORMAT_OPTIONS, FormatBuilder
 from .preview import PreviewPanel
 
 SCOPE_LABELS = {"server": "server", "session": "session", "window": "window",
@@ -96,6 +97,11 @@ class OptionRow(Gtk.ListBoxRow):
             hint.add_css_class("caption")
             box.append(frame)
             box.append(hint)
+            if self.opt.name in FORMAT_OPTIONS:
+                b = Gtk.Button(label="Build line at cursor…", halign=Gtk.Align.START,
+                               tooltip_text="Open the format builder for the line the cursor is on")
+                b.connect("clicked", self._build_list_line)
+                box.append(b)
             self.append_check = Gtk.CheckButton(label="Append to tmux defaults")
             self.append_check.connect("toggled", self._edited)
             if self.opt.name not in INDEX_ONLY:
@@ -122,12 +128,37 @@ class OptionRow(Gtk.ListBoxRow):
             b.connect("clicked", self._edit_style)
             box.append(b)
             self.entry.connect("changed", lambda *_: self._sync_style_buttons())
-        elif t == "key":
+        if self.opt.name in FORMAT_OPTIONS:
+            b = Gtk.Button(icon_name="applications-engineering-symbolic",
+                           tooltip_text="Format builder…")
+            b.connect("clicked", self._build_format)
+            box.append(b)
+        if t == "key":
             b = Gtk.Button(icon_name="input-keyboard-symbolic",
                            tooltip_text="Capture a key…")
             b.connect("clicked", self._capture_key)
             box.append(b)
         return box
+
+    def _build_format(self, _btn):
+        FormatBuilder(self.get_root(), self.opt.name, self.entry.get_text(),
+                      lambda: effective_values(self.cfg), self.entry.set_text).present()
+
+    def _build_list_line(self, _btn):
+        buf = self.textview.get_buffer()
+        line = buf.get_iter_at_mark(buf.get_insert()).get_line()
+        lines = buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False).split("\n")
+        while len(lines) <= line:
+            lines.append("")
+        # Index among non-empty lines, which is what gets written as name[N].
+        index = sum(1 for text in lines[:line] if text.strip())
+
+        def done(text):
+            lines[line] = text
+            buf.set_text("\n".join(lines))
+        FormatBuilder(self.get_root(), self.opt.name, lines[line],
+                      lambda: effective_values(self.cfg), done,
+                      status_line=index).present()
 
     def _sync_style_buttons(self):
         style = parse_style(self.entry.get_text())
@@ -244,9 +275,16 @@ class OptionRow(Gtk.ListBoxRow):
         self._update_style(check.get_active())
         self.on_change()
 
-    def matches(self, query: str) -> bool:
+    def matches(self, query: str, mode: str = "both") -> bool:
         q = query.lower()
-        return q in self.opt.name or q in self.opt.description.lower()
+        in_name = mode in ("both", "name") and q in self.opt.name
+        in_desc = mode in ("both", "description") and q in self.opt.description.lower()
+        return in_name or in_desc
+
+    def flash(self):
+        """Briefly highlight this row (used when jumping from search)."""
+        self.add_css_class("search-hit")
+        GLib.timeout_add(1500, lambda: (self.remove_css_class("search-hit"), False)[1])
 
 
 # Categories that get a live preview, and the scene each starts on.
@@ -267,7 +305,8 @@ class OptionPage(Gtk.Box):
         for r in self.rows:
             self.listbox.append(r)
         self.query = ""
-        self.listbox.set_filter_func(lambda row: row.matches(self.query))
+        self.mode = "both"
+        self.listbox.set_filter_func(lambda row: row.matches(self.query, self.mode))
         scroll = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER,
                                     vexpand=True)
         scroll.set_child(self.listbox)
@@ -299,7 +338,8 @@ class OptionPage(Gtk.Box):
         for r in self.rows:
             r.refresh()
 
-    def filter(self, query: str) -> int:
+    def filter(self, query: str, mode: str = "both") -> int:
         self.query = query.strip()
+        self.mode = mode
         self.listbox.invalidate_filter()
-        return sum(1 for r in self.rows if r.matches(self.query))
+        return sum(1 for r in self.rows if r.matches(self.query, mode))

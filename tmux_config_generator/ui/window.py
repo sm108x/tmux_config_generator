@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from gi.repository import Gdk, Gio, GLib, Gtk
+from gi.repository import Gdk, Gio, GLib, Gtk, Pango
 
 from .. import __version__
 from ..config import Binding, Config, Unbind, generate, parse
@@ -18,8 +18,32 @@ from .option_page import OptionPage
 CSS = b"""
 .option-included { background-color: alpha(@accent_bg_color, 0.08); }
 .warning { color: #c07000; }
+.search-hit { background-color: alpha(@accent_bg_color, 0.35); }
 .preview-view { font-family: monospace; }
 """
+
+
+def _highlight(text: str, q: str, on: bool, bold: bool = True) -> str:
+    """Escape text for markup, emphasising the first match of q."""
+    i = text.lower().find(q) if on and q else -1
+    if i < 0:
+        esc = GLib.markup_escape_text(text)
+        return f"<b>{esc}</b>" if bold else esc
+    pre, hit, post = (GLib.markup_escape_text(p) for p in
+                      (text[:i], text[i:i + len(q)], text[i + len(q):]))
+    mark = f"<span background='#f5d76e' foreground='#000000'>{hit}</span>"
+    out = f"{pre}{mark}{post}"
+    return f"<b>{out}</b>" if bold else out
+
+
+def _snippet(text: str, q: str, width: int = 110) -> str:
+    """A slice of text around the first match of q."""
+    i = text.lower().find(q)
+    if i < 0 or len(text) <= width:
+        return text
+    start = max(0, i - width // 3)
+    snippet = text[start:start + width]
+    return ("…" if start else "") + snippet + ("…" if start + width < len(text) else "")
 
 
 def default_config_path() -> Path:
@@ -125,10 +149,22 @@ class MainWindow(Gtk.ApplicationWindow):
                                   tooltip_text="Menu")
         header.pack_end(menu_btn)
 
-        self.search = Gtk.SearchEntry(placeholder_text="Filter options",
-                                      width_chars=24)
+        search_box = Gtk.Box()
+        search_box.add_css_class("linked")
+        self.search_modes = [("both", "Name & description"), ("name", "Name only"),
+                             ("description", "Description only")]
+        self.search_mode = Gtk.DropDown.new_from_strings([m[1] for m in self.search_modes])
+        self.search_mode.set_tooltip_text("Where to search")
+        self.search_mode.connect("notify::selected", lambda *_: self._on_search(self.search))
+        self.search = Gtk.SearchEntry(placeholder_text="Search settings (Ctrl+F)",
+                                      width_chars=26)
         self.search.connect("search-changed", self._on_search)
-        header.pack_end(self.search)
+        self.search.connect("activate", lambda *_: self._jump_to_result(0))
+        self.search.connect("stop-search", lambda e: e.set_text(""))
+        search_box.append(self.search_mode)
+        search_box.append(self.search)
+        header.pack_end(search_box)
+        self._build_results_popover(search_box)
 
     def _build_actions(self, app):
         def add(name, cb, accel=None, param=None):
@@ -180,11 +216,98 @@ class MainWindow(Gtk.ApplicationWindow):
         self.cfg.extra = buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False)
         self.changed()
 
+    def _build_results_popover(self, anchor):
+        """Search results across all tabs, shown under the search box."""
+        pop = Gtk.Popover(autohide=False, has_arrow=True, can_focus=False,
+                          position=Gtk.PositionType.BOTTOM)
+        pop.set_parent(anchor)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        self.results_label = Gtk.Label(xalign=0, margin_start=4)
+        self.results_label.add_css_class("dim-label")
+        box.append(self.results_label)
+        self.results = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE,
+                                   can_focus=False)
+        self.results.connect("row-activated", lambda _lb, r: self._jump(r.page_index, r.option_row))
+        scroll = Gtk.ScrolledWindow(min_content_width=460, max_content_height=420,
+                                    propagate_natural_height=True,
+                                    hscrollbar_policy=Gtk.PolicyType.NEVER)
+        scroll.set_child(self.results)
+        box.append(scroll)
+        pop.set_child(box)
+        self.results_pop = pop
+        focus = Gtk.EventControllerFocus()
+        focus.connect("leave", lambda *_: GLib.timeout_add(200, self._maybe_hide_results))
+        self.search.add_controller(focus)
+        self._result_rows = []
+
+    def _maybe_hide_results(self):
+        if not self.search.has_focus() and not self.search.get_focus_child():
+            self.results_pop.popdown()
+        return False
+
+    def _search_mode(self) -> str:
+        return self.search_modes[self.search_mode.get_selected()][0]
+
+    def _fill_results(self, query: str, mode: str):
+        self.results.remove_all()
+        self._result_rows = []
+        q = query.strip().lower()
+        if not q:
+            self.results_pop.popdown()
+            return
+        for i, page in enumerate(self.pages):
+            for row in page.rows:
+                if row.matches(q, mode):
+                    self._result_rows.append((i, row))
+        shown = self._result_rows[:60]
+        for i, row in shown:
+            item = Gtk.ListBoxRow(can_focus=False)
+            item.page_index, item.option_row = i, row
+            v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1,
+                        margin_top=4, margin_bottom=4, margin_start=6, margin_end=6)
+            title = Gtk.Label(xalign=0)
+            title.set_markup(f"{_highlight(row.opt.name, q, mode != 'description')}"
+                             f"  <small>{GLib.markup_escape_text(CATEGORIES[i][1])}</small>")
+            desc = Gtk.Label(xalign=0, wrap=True, max_width_chars=60, lines=2,
+                             ellipsize=Pango.EllipsizeMode.END)
+            desc.set_markup(_highlight(_snippet(row.opt.description, q),
+                                       q, mode != "name", bold=False))
+            desc.add_css_class("dim-label")
+            desc.add_css_class("caption")
+            v.append(title)
+            v.append(desc)
+            item.set_child(v)
+            self.results.append(item)
+        n = len(self._result_rows)
+        more = f" (showing {len(shown)})" if n > len(shown) else ""
+        self.results_label.set_label(
+            f"{n} matching setting{'s' if n != 1 else ''}{more} — click to jump, Enter for the first"
+            if n else "No matching settings")
+        self.results_pop.popup()
+
+    def _jump_to_result(self, index: int):
+        if index < len(self._result_rows):
+            self._jump(*self._result_rows[index])
+
+    def _jump(self, page_index: int, row):
+        self.results_pop.popdown()
+        self.notebook.set_current_page(page_index)
+
+        def focus():
+            # Focus the value editor so you can type straight away.
+            if not row.editor.child_focus(Gtk.DirectionType.TAB_FORWARD):
+                row.grab_focus()
+            row.flash()
+            return False
+        GLib.idle_add(focus)
+
     def _on_search(self, entry):
         query = entry.get_text()
+        mode = self._search_mode()
+        self._fill_results(query, mode)
         first_hit = None
         for i, page in enumerate(self.pages):
-            n = page.filter(query)
+            n = page.filter(query, mode)
             title = CATEGORIES[i][1]
             label = f"{title} ({n})" if query.strip() else title
             self.notebook.get_tab_label(page).set_label(label)
@@ -192,7 +315,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 first_hit = i
         current = self.notebook.get_current_page()
         if query.strip() and first_hit is not None and (
-                current >= len(self.pages) or not self.pages[current].filter(query)):
+                current >= len(self.pages) or not self.pages[current].filter(query, mode)):
             self.notebook.set_current_page(first_hit)
 
     def changed(self):

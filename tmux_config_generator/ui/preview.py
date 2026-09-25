@@ -49,7 +49,7 @@ class PreviewPanel(Gtk.Box):
         self.values_fn = values_fn
         self.scene_ids = [s for s, _ in SCENES]
         self.palette = "dark"
-        self._metrics = {}
+        self.painter = ScreenPainter()
 
         head = Gtk.Box(spacing=8)
         title = Gtk.Label(xalign=0)
@@ -93,53 +93,65 @@ class PreviewPanel(Gtk.Box):
     def refresh(self):
         self.area.queue_draw()
 
-    # -- painting ---------------------------------------------------------
-
-    def _font(self, px: float) -> Pango.FontDescription:
-        desc = Pango.FontDescription.from_string(FONT_FAMILY)
-        desc.set_absolute_size(px * Pango.SCALE)
-        return desc
-
-    def _measure(self, cr):
-        """Cell width/height for a 100px font, measured once."""
-        if "base" not in self._metrics:
-            layout = PangoCairo.create_layout(cr)
-            layout.set_font_description(self._font(100))
-            layout.set_text("M" * 20, -1)
-            _ink, logical = layout.get_pixel_extents()
-            self._metrics["base"] = (logical.width / 20, logical.height)
-        return self._metrics["base"]
-
     def _draw(self, _area, cr, width, height):
-        pal = PALETTES[self.palette]
+        painter = self.painter
         # Fill the area: 90 columns wide if that leaves enough rows,
         # otherwise fit 14 rows and use as many columns as fit.
-        cw100, ch100 = self._measure(cr)
+        cw100, ch100 = painter.measure(cr)
         scale = width / (COLS * cw100)
         cols, rows = COLS, int(height / (ch100 * scale))
         if rows < MIN_ROWS:
             scale = height / (MIN_ROWS * ch100)
             rows, cols = MIN_ROWS, max(40, int(width / (cw100 * scale)))
         rows = min(rows, 60)
-        cw, chh = cw100 * scale, ch100 * scale
-        ox = (width - cols * cw) / 2
-        oy = (height - rows * chh) / 2
         try:
             screen = build_screen(self.values_fn(), self.scene, cols, rows)
         except Exception as e:  # never let a bad value break the UI
-            cr.set_source_rgb(0.5, 0, 0)
-            cr.paint()
-            layout = PangoCairo.create_layout(cr)
-            layout.set_text(f"Preview error: {e}", -1)
-            cr.set_source_rgb(1, 1, 1)
-            PangoCairo.show_layout(cr, layout)
+            painter.error(cr, e)
             return
+        painter.paint(cr, screen, width, height, scale, self.palette,
+                      cursor=self.scene not in ("display-panes", "menu", "popup"))
 
+
+class ScreenPainter:
+    """Paints a Screen with cairo/Pango; box-drawing characters as lines."""
+
+    def __init__(self):
+        self._metrics = {}
+
+    def font(self, px: float) -> Pango.FontDescription:
+        desc = Pango.FontDescription.from_string(FONT_FAMILY)
+        desc.set_absolute_size(px * Pango.SCALE)
+        return desc
+
+    def measure(self, cr):
+        """Cell width/height for a 100px font, measured once."""
+        if "base" not in self._metrics:
+            layout = PangoCairo.create_layout(cr)
+            layout.set_font_description(self.font(100))
+            layout.set_text("M" * 20, -1)
+            _ink, logical = layout.get_pixel_extents()
+            self._metrics["base"] = (logical.width / 20, logical.height)
+        return self._metrics["base"]
+
+    def error(self, cr, e):
+        cr.set_source_rgb(0.5, 0, 0)
+        cr.paint()
+        layout = PangoCairo.create_layout(cr)
+        layout.set_text(f"Preview error: {e}", -1)
+        cr.set_source_rgb(1, 1, 1)
+        PangoCairo.show_layout(cr, layout)
+
+    def paint(self, cr, screen, width, height, scale, palette="dark", cursor=True):
+        pal = PALETTES[palette]
+        cw100, ch100 = self.measure(cr)
+        cw, chh = cw100 * scale, ch100 * scale
+        ox = (width - screen.cols * cw) / 2
+        oy = (height - screen.rows * chh) / 2
         cr.set_source_rgb(*[c / 255 for c in pal["bg"]])
         cr.paint()
         layout = PangoCairo.create_layout(cr)
-        layout.set_font_description(self._font(100 * scale))
-
+        layout.set_font_description(self.font(100 * scale))
         # Backgrounds first, then text, so descenders (e.g. "_") are not
         # painted over by the next row.
         pieces = []
@@ -153,7 +165,7 @@ class PreviewPanel(Gtk.Box):
                     while (end < len(row) and row[end][1] == style
                            and row[end][0].isascii()):
                         end += 1
-                fg, bg = self._colours(style, pal)
+                fg, bg = self.colours(style, pal)
                 rx, ry = ox + x * cw, oy + y * chh
                 cr.set_source_rgb(*[c / 255 for c in bg])
                 cr.rectangle(rx, ry, (end - x) * cw + 0.6, chh + 0.6)
@@ -170,7 +182,7 @@ class PreviewPanel(Gtk.Box):
                 self._text(cr, layout, text, style, rx, ry)
 
         cur = screen.cursor
-        if cur is not None and self.scene not in ("display-panes", "menu", "popup"):
+        if cur is not None and cursor:
             colour = _rgb(cur.colour, pal["fg"])
             rx, ry = ox + cur.x * cw, oy + cur.y * chh
             cr.set_source_rgb(*[c / 255 for c in colour])
@@ -182,7 +194,7 @@ class PreviewPanel(Gtk.Box):
                 cr.rectangle(rx, ry, cw, chh)
             cr.fill()
 
-    def _colours(self, style: CellStyle, pal):
+    def colours(self, style: CellStyle, pal):
         fg = _rgb(style.fg, pal["fg"])
         bg = _rgb(style.bg, pal["bg"])
         if "reverse" in style.attrs:
@@ -252,3 +264,27 @@ class PreviewPanel(Gtk.Box):
         seg(down, cx, cy - ext_v, cx, y + chh, True)
         seg(left, x, cy, cx + ext_h, cy, False)
         seg(right, cx - ext_h, cy, x + cw, cy, False)
+
+
+class ScreenStrip(Gtk.DrawingArea):
+    """Paints a few rows (e.g. a status line) built by *screen_fn(cols)*."""
+
+    def __init__(self, screen_fn, rows: int = 1, row_px: int = 22):
+        super().__init__(hexpand=True, content_height=rows * row_px + 8)
+        self.screen_fn = screen_fn
+        self.rows = rows
+        self.painter = ScreenPainter()
+        self.palette = "dark"
+        self.set_draw_func(self._draw)
+
+    def _draw(self, _a, cr, width, height):
+        cw100, ch100 = self.painter.measure(cr)
+        scale = min((height - 8) / (self.rows * ch100), 0.16)
+        cols = max(10, int(width / (cw100 * scale)))
+        try:
+            screen = self.screen_fn(cols)
+        except Exception as e:
+            self.painter.error(cr, e)
+            return
+        self.painter.paint(cr, screen, width, height, scale, self.palette,
+                           cursor=False)

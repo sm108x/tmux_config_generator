@@ -4,6 +4,15 @@ A cross-platform GTK 4 desktop app for building a `tmux.conf` without memorising
 
 - **Every tmux option** (118 server, session, window and pane options from tmux 3.4) is sorted into category tabs: General, Input & Keys, Status Line, Window List, Windows, Panes, Copy Mode & Menus, Alerts, Terminal. Each option shows a description from the man page and a matching editor: a switch, dropdown, number field, colour picker, style editor, key-capture field or list editor.
 - **Colour pickers:** each colour has a swatch button. It opens a grid of all 256 tmux palette colours (hover to see the name and hex), plus Default, Terminal, and a Custom colour… RGB picker. You can also type `red`, `colour33`, `#ff8800`, `ff8800`, `#f80` or `rgb(255,136,0)`; typed values are converted to tmux syntax and invalid ones are highlighted. Style options also have **fg** and **bg** swatches in the row, so you can set colours without opening the style editor.
+- **Format builder** for every option that takes placeholders: status-left/right, the window-status formats and separator, each `status-format` line, pane-border-format, automatic-rename-format, set-titles-string and remain-on-exit-format. Click to insert:
+  - any of the 192 format variables, searchable, with descriptions and sample values
+  - style tags with colour pickers (select text first to wrap it)
+  - conditionals and modifiers (`#{?…}`, `#{==:…}`, `#{=20:…}`, `#{b:…}`, `#{W:…}`, `#(…)` …)
+  - date/time codes
+  - ready-made examples
+
+  A live preview shows the real status line or pane border, and unbalanced `#{`/`#[` are flagged.
+- **Search** settings by name, by description, or both (dropdown next to the search box, Ctrl+F). Matches appear in a list across all tabs; click one, or press Enter for the first, to jump to it.
 - **Only the options you change are written.** Tick or untick an option to include or exclude it. The undo button resets it to the tmux default.
 - **Key binding editor:**
   - Add, edit, duplicate and remove bindings in any key table (`prefix`, `root`/`-n`, `copy-mode`, `copy-mode-vi`, or a custom table).
@@ -92,7 +101,7 @@ Shortcuts:
 | Ctrl+Shift+S | Save As |
 | Ctrl+Shift+C | Copy to clipboard |
 | Ctrl+R | Check with tmux |
-| Ctrl+F | Filter options |
+| Ctrl+F | Search settings |
 | Ctrl+N | New |
 
 After saving, reload a running tmux with `tmux source-file ~/.tmux.conf`.
@@ -115,7 +124,7 @@ Layout:
 | `tmux_config_generator/config.py` | Config model, `tmux.conf` generation and parsing |
 | `tmux_config_generator/keys.py` | GTK key event → tmux key name |
 | `tmux_config_generator/styles.py` | Style strings and colour parsing |
-| `tmux_config_generator/default_bindings.py`, `commands.py` | tmux 3.4 default key bindings and command reference |
+| `tmux_config_generator/default_bindings.py`, `commands.py`, `format_vars.py` | tmux 3.4 default key bindings, command reference and format variables |
 | `tmux_config_generator/presets.py` | Command presets and quick-start presets |
 | `tmux_config_generator/render/` | tmux format expander and screen mock-up used by the visual preview |
 | `tmux_config_generator/validate.py` | Checks a config with a real tmux binary |

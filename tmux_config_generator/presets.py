@@ -158,3 +158,76 @@ QUICK_PRESETS = [
          "message-style": "bg=colour33,fg=colour231",
      }, [], []),
 ]
+
+
+# Example values offered by the format builder: option -> [(label, format)].
+FORMAT_EXAMPLES = {
+    "status-left": [
+        ("tmux default", "[#{session_name}] "),
+        ("Session name, highlighted", "#[bg=colour33,fg=colour231,bold] #S #[default] "),
+        ("Turns red while prefix is pressed",
+         "#{?client_prefix,#[bg=red],#[bg=colour33]}#[fg=colour231] #S #[default] "),
+        ("Session : window : pane", "#[fg=green]#S #[fg=yellow]#I #[fg=cyan]#P #[default]"),
+        ("Host name", "#[fg=colour245]#h #[default]"),
+    ],
+    "status-right": [
+        ("tmux default",
+         '#{?window_bigger,[#{window_offset_x}#,#{window_offset_y}] ,}"#{=21:pane_title}" %H:%M %d-%b-%y'),
+        ("Date and time", " %Y-%m-%d %H:%M "),
+        ("Prefix indicator + time", "#{?client_prefix,#[reverse] PREFIX #[noreverse] ,}%H:%M "),
+        ("Host and time", "#[fg=colour245]#H #[fg=colour250]%a %d %b %H:%M "),
+        ("Load average (runs a shell command)",
+         "#(cut -d' ' -f1-3 /proc/loadavg) %H:%M "),
+        ("Current directory", "#[fg=colour245]#{b:pane_current_path} "),
+        ("Sync-panes warning", "#{?pane_synchronized,#[bg=red] SYNC #[default] ,}%H:%M "),
+    ],
+    "window-status-format": [
+        ("tmux default", "#I:#W#{?window_flags,#{window_flags}, }"),
+        ("Padded, no flags", " #I:#W "),
+        ("Index and directory", " #I #{b:pane_current_path} "),
+        ("Zoom marker", " #I:#W#{?window_zoomed_flag, (zoomed),} "),
+    ],
+    "window-status-current-format": [
+        ("tmux default", "#I:#W#{?window_flags,#{window_flags}, }"),
+        ("Padded, bold", "#[bold] #I:#W #[nobold]"),
+        ("Arrow markers", "▶ #I:#W ◀"),
+        ("Index and directory", " #I #{b:pane_current_path} "),
+    ],
+    "window-status-separator": [
+        ("tmux default (space)", " "),
+        ("None", ""),
+        ("Bar", " | "),
+    ],
+    "pane-border-format": [
+        ("tmux default", '#{?pane_active,#[reverse],}#{pane_index}#[default] "#{pane_title}"'),
+        ("Index and command", " #P: #{pane_current_command} "),
+        ("Index and directory", " #P #{b:pane_current_path} "),
+        ("Size", " #P #{pane_width}x#{pane_height} "),
+    ],
+    "automatic-rename-format": [
+        ("tmux default", "#{?pane_in_mode,[tmux],#{pane_current_command}}#{?pane_dead,[dead],}"),
+        ("Current directory name", "#{b:pane_current_path}"),
+        ("Command in directory", "#{pane_current_command}:#{b:pane_current_path}"),
+    ],
+    "set-titles-string": [
+        ("tmux default", '#S:#I:#W - "#T" #{session_alerts}'),
+        ("Session and window", "#S: #W"),
+        ("Pane title", "#T"),
+        ("Host, session, directory", "#h [#S] #{pane_current_path}"),
+    ],
+    "remain-on-exit-format": [
+        ("tmux default",
+         "Pane is dead (#{?#{!=:#{pane_dead_status},},status #{pane_dead_status},}"
+         "#{?#{!=:#{pane_dead_signal},},signal #{pane_dead_signal},}, #{t:pane_dead_time})"),
+        ("Short", "[exited #{pane_dead_status}] press prefix x to close"),
+    ],
+    "status-format": [
+        ("Pane list line (tmux default for line 2)",
+         "#[align=centre]#{P:#{?pane_active,#[reverse],}#{pane_index}[#{pane_width}x#{pane_height}]#[default] }"),
+        ("Centred window list",
+         "#[align=centre]#{W:#[fg=colour245] #I:#W ,#[fg=colour231,bold] #I:#W #[nobold]}"),
+        ("Left / centre / right",
+         "#[align=left] #S #[align=centre]#{W: #I:#W , [#I:#W] }#[align=right]%H:%M "),
+        ("Clock only, right aligned", "#[align=right] %a %d %b %H:%M "),
+    ],
+}
