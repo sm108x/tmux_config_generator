@@ -389,4 +389,6 @@ class MainWindow(Gtk.ApplicationWindow):
                         comments="Build a tmux.conf with a GUI: every option, "
                                  "grouped by category, plus a key binding editor.",
                         version=__version__,
+                        copyright="Copyright © 2026 Stephen Martina",
+                        license_type=Gtk.License.GPL_3_0,
                         logo_icon_name="utilities-terminal").present()

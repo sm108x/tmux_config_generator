@@ -98,3 +98,11 @@ Layout:
 | `tmux_config_generator/ui/` | GTK 4 interface |
 
 Array options (`update-environment`, `terminal-features`, `status-format`, …) are written by clearing the array and then setting indexed entries (`set -g name[0] …`), or with `set -a` in "append to tmux defaults" mode. Writing them this way stops tmux from splitting values on commas.
+
+## License
+
+Copyright (C) 2026 Stephen Martina
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the [GNU General Public License](LICENSE) for more details.

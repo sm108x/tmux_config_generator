@@ -8,6 +8,13 @@ version = "0.1.0"
 description = "GTK 4 GUI for generating tmux configuration files"
 readme = "README.md"
 requires-python = ">=3.9"
+license = {text = "GPL-3.0-or-later"}
+authors = [{name = "Stephen Martina"}]
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Environment :: X11 Applications :: GTK",
+    "Programming Language :: Python :: 3",
+]
 dependencies = ["PyGObject>=3.42"]
 
 [project.optional-dependencies]
