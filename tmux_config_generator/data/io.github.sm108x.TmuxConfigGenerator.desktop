@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=tmux Config Generator
+GenericName=tmux Configuration Editor
+Comment=Build a tmux.conf with every option and a key binding editor
+Exec=tmux-config-generator %f
+Icon=io.github.sm108x.TmuxConfigGenerator
+Terminal=false
+Categories=GTK;Utility;
+Keywords=tmux;terminal;multiplexer;configuration;config;keybindings;
+StartupNotify=true

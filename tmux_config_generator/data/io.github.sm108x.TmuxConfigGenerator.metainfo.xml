@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.sm108x.TmuxConfigGenerator</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>tmux Config Generator</name>
+  <summary>Build a tmux configuration file with a GUI</summary>
+  <developer id="io.github.sm108x">
+    <name>Stephen Martina</name>
+  </developer>
+  <description>
+    <p>
+      Edit every tmux option, grouped into category tabs with descriptions
+      from the manual, and define key bindings with a key-capture editor.
+      A live preview shows the generated tmux.conf, existing configs can be
+      imported, and the result can be checked with tmux before saving.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.sm108x.TmuxConfigGenerator.desktop</launchable>
+  <url type="homepage">https://github.com/sm108x/tmux_config_generator</url>
+  <url type="bugtracker">https://github.com/sm108x/tmux_config_generator/issues</url>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-09-25"/>
+  </releases>
+</component>

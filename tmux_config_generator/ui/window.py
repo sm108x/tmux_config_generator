@@ -275,7 +275,9 @@ class MainWindow(Gtk.ApplicationWindow):
             gfile = dialog.open_finish(result)
         except GLib.Error:
             return
-        path = Path(gfile.get_path())
+        self.load_path(Path(gfile.get_path()))
+
+    def load_path(self, path: Path):
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as e:

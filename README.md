@@ -60,6 +60,27 @@ Or install it to get a `tmux-config-generator` launcher:
 pip install --no-build-isolation .   # uses the system PyGObject
 ```
 
+You can also pass a file to open: `python3 -m tmux_config_generator ~/.tmux.conf`.
+
+### Adding it to your application menu
+
+```sh
+python3 -m tmux_config_generator --install-launcher     # or: tmux-config-generator --install-launcher
+python3 -m tmux_config_generator --uninstall-launcher   # remove it again
+```
+
+This registers the app for the current user only, and needs no admin rights:
+
+| Platform | What gets installed |
+|---|---|
+| Linux / BSD | `.desktop` entry, icons (hicolor theme) and AppStream metainfo under `~/.local/share` (or `$XDG_DATA_HOME`) |
+| Windows | Start Menu shortcut with the app icon |
+| macOS | `~/Applications/tmux Config Generator.app` |
+
+The launcher runs the Python interpreter you used for `--install-launcher`, or the `tmux-config-generator` command if it's on `PATH`. Re-run it if you move the source checkout or change Python environments.
+
+For distro packaging, the static files are in `tmux_config_generator/data/`: the desktop file, metainfo, and icons as SVG, PNG, `.ico` and `.icns`. To regenerate the icons from their source, run `python3 tools/build_icons.py` (needs Inkscape).
+
 Shortcuts:
 
 | Shortcut | Action |
@@ -95,6 +116,9 @@ Layout:
 | `tmux_config_generator/default_bindings.py`, `commands.py` | tmux 3.4 default key bindings and command reference |
 | `tmux_config_generator/presets.py` | Command presets and quick-start presets |
 | `tmux_config_generator/validate.py` | Checks a config with a real tmux binary |
+| `tmux_config_generator/launcher.py` | Adds the app to the desktop's application menu |
+| `tmux_config_generator/data/` | Desktop file, AppStream metainfo, icons |
+| `tools/build_icons.py` | Generates the icons |
 | `tmux_config_generator/ui/` | GTK 4 interface |
 
 Array options (`update-environment`, `terminal-features`, `status-format`, …) are written by clearing the array and then setting indexed entries (`set -g name[0] …`), or with `set -a` in "append to tmux defaults" mode. Writing them this way stops tmux from splitting values on commas.

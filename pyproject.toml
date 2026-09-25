@@ -25,3 +25,12 @@ tmux-config-generator = "tmux_config_generator.app:main"
 
 [tool.setuptools.packages.find]
 include = ["tmux_config_generator*"]
+
+[tool.setuptools.package-data]
+tmux_config_generator = [
+    "data/*.desktop",
+    "data/*.xml",
+    "data/icons/*.ico",
+    "data/icons/*.icns",
+    "data/icons/hicolor/*/apps/*",
+]
