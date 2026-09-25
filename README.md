@@ -12,6 +12,9 @@ A cross-platform GTK 4 desktop app for building a `tmux.conf` without memorising
   - ready-made examples
 
   A live preview shows the real status line or pane border, and unbalanced `#{`/`#[` are flagged.
+- **Terminal settings:**
+  - **default-terminal** is a dropdown of the usual choices (tmux-256color, screen-256color, …) with explanations, and "Other…" for anything else. It shows whether the terminfo entry is installed on this machine.
+  - **terminal-features** and **terminal-overrides** have builders. For each entry you pick a terminal pattern (and see whether it matches your current `$TERM`), then tick features or add terminfo capabilities with descriptions and example values. Recipes cover true colour, undercurl, coloured underlines, cursor shape, clipboard and keeping scrollback. Colons in values are escaped as `::` for you.
 - **Search** settings by name, by description, or both (dropdown next to the search box, Ctrl+F). Matches appear in a list across all tabs; click one, or press Enter for the first, to jump to it.
 - **Only the options you change are written.** Tick or untick an option to include or exclude it. The undo button resets it to the tmux default.
 - **Key binding editor:**
@@ -125,7 +128,8 @@ Layout:
 | `tmux_config_generator/keys.py` | GTK key event → tmux key name |
 | `tmux_config_generator/styles.py` | Style strings and colour parsing |
 | `tmux_config_generator/default_bindings.py`, `commands.py`, `format_vars.py` | tmux 3.4 default key bindings, command reference and format variables |
-| `tmux_config_generator/presets.py` | Command presets and quick-start presets |
+| `tmux_config_generator/presets.py` | Command presets, quick-start presets and format examples |
+| `tmux_config_generator/terminal.py` | default-terminal choices, terminal features/capabilities, entry parsing, terminfo lookup |
 | `tmux_config_generator/render/` | tmux format expander and screen mock-up used by the visual preview |
 | `tmux_config_generator/validate.py` | Checks a config with a real tmux binary |
 | `tmux_config_generator/launcher.py` | Adds the app to the desktop's application menu |

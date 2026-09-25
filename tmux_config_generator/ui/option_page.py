@@ -11,6 +11,7 @@ from ..styles import parse_style
 from .colour import ColourButton, ColourEntry
 from .dialogs import KeyCaptureDialog, StyleDialog
 from .format_builder import FORMAT_OPTIONS, FormatBuilder
+from .terminal_builder import DefaultTerminalEditor, TerminalListBuilder
 from .preview import PreviewPanel
 
 SCOPE_LABELS = {"server": "server", "session": "session", "window": "window",
@@ -97,6 +98,11 @@ class OptionRow(Gtk.ListBoxRow):
             hint.add_css_class("caption")
             box.append(frame)
             box.append(hint)
+            if self.opt.name in ("terminal-features", "terminal-overrides"):
+                b = Gtk.Button(label="Builder…", halign=Gtk.Align.START,
+                               tooltip_text="Edit entries with pattern, feature and capability pickers")
+                b.connect("clicked", self._build_terminal_list)
+                box.append(b)
             if self.opt.name in FORMAT_OPTIONS:
                 b = Gtk.Button(label="Build line at cursor…", halign=Gtk.Align.START,
                                tooltip_text="Open the format builder for the line the cursor is on")
@@ -115,6 +121,9 @@ class OptionRow(Gtk.ListBoxRow):
         if t == "format":
             self.entry.add_css_class("monospace")
         self.entry.connect("changed", self._edited)
+        if self.opt.name == "default-terminal":
+            self.entry.set_width_chars(18)
+            return DefaultTerminalEditor(self.entry)
         box.append(self.entry)
         if t == "style":
             self.style_buttons = {
@@ -143,6 +152,12 @@ class OptionRow(Gtk.ListBoxRow):
     def _build_format(self, _btn):
         FormatBuilder(self.get_root(), self.opt.name, self.entry.get_text(),
                       lambda: effective_values(self.cfg), self.entry.set_text).present()
+
+    def _build_terminal_list(self, _btn):
+        buf = self.textview.get_buffer()
+        text = buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False)
+        TerminalListBuilder(self.get_root(), self.opt.name, text.split("\n"),
+                            lambda entries: buf.set_text("\n".join(entries))).present()
 
     def _build_list_line(self, _btn):
         buf = self.textview.get_buffer()
