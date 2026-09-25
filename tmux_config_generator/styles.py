@@ -33,7 +33,7 @@ _NAME_INDEX = {n: i for i, n in enumerate(
 
 def colour_to_rgb(colour: str):
     """Return (r, g, b) for a tmux colour, or None if it has no fixed RGB."""
-    c = colour.strip().lower()
+    c = normalize_colour(colour) or colour.strip().lower()
     if re.fullmatch(r"#[0-9a-f]{6}", c):
         return tuple(int(c[i:i + 2], 16) for i in (1, 3, 5))
     if c in _NAME_INDEX:
@@ -44,6 +44,44 @@ def colour_to_rgb(colour: str):
     if m and int(m.group(1)) < 256:
         return _palette256(int(m.group(1)))
     return None
+
+
+def normalize_colour(text: str) -> str | None:
+    """Return *text* as a colour tmux accepts, or None if it isn't one.
+
+    Accepts tmux names (red, brightblue, default, terminal), colourN/colorN
+    (0-255), and RGB as #rrggbb, rrggbb, #rgb or rgb(r, g, b); RGB is
+    returned as lower-case #rrggbb, the only RGB form tmux understands.
+    """
+    t = text.strip().lower()
+    if t in NAMED_COLOURS:
+        return t
+    m = re.fullmatch(r"colou?r(\d{1,3})", t)
+    if m:
+        return f"colour{int(m.group(1))}" if int(m.group(1)) < 256 else None
+    m = re.fullmatch(r"#?([0-9a-f]{6})", t)
+    if m:
+        return "#" + m.group(1)
+    m = re.fullmatch(r"#([0-9a-f]{3})", t)  # short form needs the '#'
+    if m:
+        return "#" + "".join(c * 2 for c in m.group(1))
+    m = re.fullmatch(r"rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)", t)
+    if m and all(int(v) < 256 for v in m.groups()):
+        return rgb_to_hex(*(int(v) for v in m.groups()))
+    return None
+
+
+def tmux_colour_name(index: int) -> str:
+    """Name for palette entry *index*: the 16 base colours by name."""
+    if index < 8:
+        return NAMED_COLOURS[2 + index]
+    if index < 16:
+        return NAMED_COLOURS[10 + index - 8]
+    return f"colour{index}"
+
+
+def palette_rgb(index: int):
+    return _palette256(index)
 
 
 def _palette256(n: int):

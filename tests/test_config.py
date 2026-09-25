@@ -8,7 +8,8 @@ from tmux_config_generator.default_bindings import DEFAULT_BINDINGS
 from tmux_config_generator.keys import event_to_tmux
 from tmux_config_generator.options import OPTIONS, OPTIONS_BY_NAME
 from tmux_config_generator.presets import QUICK_PRESETS
-from tmux_config_generator.styles import colour_to_rgb, parse_style
+from tmux_config_generator.styles import (colour_to_rgb, normalize_colour, parse_style,
+                                          tmux_colour_name)
 from tmux_config_generator.validate import validate
 
 needs_tmux = pytest.mark.skipif(not shutil.which("tmux"), reason="tmux not installed")
@@ -182,3 +183,22 @@ def test_tmux_accepts_every_choice():
             lines.append(generate(Config(values={o.name: choice}), header=False))
     ok, msg = validate("".join(lines))
     assert ok, msg
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("#FF8800", "#ff8800"), ("ff8800", "#ff8800"), (" #f80 ", "#ff8800"),
+    ("rgb(255, 136, 0)", "#ff8800"), ("RGB(0,0,0)", "#000000"),
+    ("Red", "red"), ("brightBlue", "brightblue"), ("default", "default"),
+    ("terminal", "terminal"), ("colour33", "colour33"), ("color033", "colour33"),
+    ("colour256", None), ("rgb(256,0,0)", None), ("f80", None), ("#ff880", None),
+    ("purple", None), ("", None),
+])
+def test_normalize_colour(text, expected):
+    assert normalize_colour(text) == expected
+
+
+def test_palette_names_and_rgb():
+    assert [tmux_colour_name(i) for i in (0, 7, 8, 15, 16, 255)] == [
+        "black", "white", "brightblack", "brightwhite", "colour16", "colour255"]
+    assert colour_to_rgb("ff0000") == (255, 0, 0)
+    assert colour_to_rgb("#0f0") == (0, 255, 0)

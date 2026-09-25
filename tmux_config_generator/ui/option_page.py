@@ -7,7 +7,9 @@ from gi.repository import Gtk
 from ..config import INDEX_ONLY, Config
 from ..options import Option, options_in
 from ..render.screen import effective_values, scene_for_option
-from .dialogs import ColourEntry, KeyCaptureDialog, StyleDialog
+from ..styles import parse_style
+from .colour import ColourButton, ColourEntry
+from .dialogs import KeyCaptureDialog, StyleDialog
 from .preview import PreviewPanel
 
 SCOPE_LABELS = {"server": "server", "session": "session", "window": "window",
@@ -109,16 +111,42 @@ class OptionRow(Gtk.ListBoxRow):
         self.entry.connect("changed", self._edited)
         box.append(self.entry)
         if t == "style":
+            self.style_buttons = {
+                key: ColourButton(lambda v, k=key: self._set_style_colour(k, v),
+                                  tooltip=f"{label} colour", label=key)
+                for key, label in (("fg", "Foreground"), ("bg", "Background"))}
+            for btn in self.style_buttons.values():
+                box.append(btn)
             b = Gtk.Button(icon_name="document-edit-symbolic",
                            tooltip_text="Style editor…")
             b.connect("clicked", self._edit_style)
             box.append(b)
+            self.entry.connect("changed", lambda *_: self._sync_style_buttons())
         elif t == "key":
             b = Gtk.Button(icon_name="input-keyboard-symbolic",
                            tooltip_text="Capture a key…")
             b.connect("clicked", self._capture_key)
             box.append(b)
         return box
+
+    def _sync_style_buttons(self):
+        style = parse_style(self.entry.get_text())
+        for key, btn in self.style_buttons.items():
+            # Styles built from #{...} formats can't be edited piecemeal.
+            btn.set_sensitive(style is not None)
+            btn.set_colour(getattr(style, key) if style else "")
+
+    def _set_style_colour(self, key: str, colour: str):
+        style = parse_style(self.entry.get_text())
+        if style is None:
+            return
+        only_default = style.default and not (
+            style.fg or style.bg or style.us or style.fill or style.attrs
+            or style.noattrs or style.other)
+        if only_default:
+            style.default = False  # plain "default" + a colour -> just the colour
+        setattr(style, key, colour)
+        self.entry.set_text(style.to_string())
 
     def _edit_style(self, _btn):
         StyleDialog(self.get_root(), self.entry.get_text(),

@@ -3,6 +3,7 @@
 A cross-platform GTK 4 desktop app for building a `tmux.conf` without memorising the manual.
 
 - **Every tmux option** (118 server, session, window and pane options from tmux 3.4) is sorted into category tabs: General, Input & Keys, Status Line, Window List, Windows, Panes, Copy Mode & Menus, Alerts, Terminal. Each option shows a description from the man page and a matching editor: a switch, dropdown, number field, colour picker, style editor, key-capture field or list editor.
+- **Colour pickers:** each colour has a swatch button. It opens a grid of all 256 tmux palette colours (hover to see the name and hex), plus Default, Terminal, and a Custom colour… RGB picker. You can also type `red`, `colour33`, `#ff8800`, `ff8800`, `#f80` or `rgb(255,136,0)`; typed values are converted to tmux syntax and invalid ones are highlighted. Style options also have **fg** and **bg** swatches in the row, so you can set colours without opening the style editor.
 - **Only the options you change are written.** Tick or untick an option to include or exclude it. The undo button resets it to the tmux default.
 - **Key binding editor:**
   - Add, edit, duplicate and remove bindings in any key table (`prefix`, `root`/`-n`, `copy-mode`, `copy-mode-vi`, or a custom table).

@@ -5,7 +5,8 @@ from __future__ import annotations
 from gi.repository import Gdk, GLib, Gtk
 
 from ..keys import MOUSE_KEYS, SPECIAL_KEYS, event_to_tmux
-from ..styles import ATTRIBUTES, NAMED_COLOURS, colour_to_rgb, parse_style, rgb_to_hex
+from ..styles import ATTRIBUTES, colour_to_rgb, parse_style, rgb_to_hex
+from .colour import ColourEntry
 
 
 def button_row(*buttons: Gtk.Widget) -> Gtk.Box:
@@ -85,7 +86,7 @@ class KeyCaptureDialog(Dialog):
         focus = self.get_focus()
         if focus is not None and focus.is_ancestor(self.special):
             return False  # typing into the dropdown's search box
-        ch =Gdk.keyval_to_unicode(keyval)
+        ch = Gdk.keyval_to_unicode(keyval)
         name = event_to_tmux(
             Gdk.keyval_name(keyval), chr(ch) if ch else "",
             bool(state & Gdk.ModifierType.CONTROL_MASK),
@@ -108,70 +109,6 @@ class KeyCaptureDialog(Dialog):
         if self.key:
             self.callback(self.key)
         self.close()
-
-
-class ColourEntry(Gtk.Box):
-    """Entry for a tmux colour with a swatch/picker button."""
-
-    def __init__(self, on_changed=None, allow_empty=True):
-        super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-        self.add_css_class("linked")
-        self.on_changed = on_changed
-        self._updating = False
-        self.entry = Gtk.Entry(width_chars=14, hexpand=True,
-                               placeholder_text="e.g. red, colour33, #ff8800")
-        self.entry.connect("changed", self._on_entry)
-        completion_names = NAMED_COLOURS + [f"colour{i}" for i in range(256)]
-        self.names = Gtk.DropDown.new_from_strings([""] + completion_names)
-        self.names.set_enable_search(True)
-        self.names.set_expression(
-            Gtk.PropertyExpression.new(Gtk.StringObject, None, "string"))
-        self.names.set_tooltip_text("Pick a named or palette colour")
-        self.names.connect("notify::selected", self._on_name)
-        self.picker = Gtk.ColorDialogButton(dialog=Gtk.ColorDialog(with_alpha=False))
-        self.picker.set_tooltip_text("Pick an RGB colour")
-        self.picker.connect("notify::rgba", self._on_pick)
-        self.append(self.entry)
-        self.append(self.names)
-        self.append(self.picker)
-
-    def get_text(self) -> str:
-        return self.entry.get_text().strip()
-
-    def set_text(self, text: str):
-        self._updating = True
-        self.entry.set_text(text)
-        self._sync_swatch(text)
-        self._updating = False
-
-    def _sync_swatch(self, text):
-        rgb = colour_to_rgb(text)
-        if rgb:
-            rgba = Gdk.RGBA()
-            rgba.parse(rgb_to_hex(*rgb))
-            was = self._updating
-            self._updating = True
-            self.picker.set_rgba(rgba)
-            self._updating = was
-
-    def _on_entry(self, entry):
-        if self._updating:
-            return
-        self._sync_swatch(entry.get_text())
-        if self.on_changed:
-            self.on_changed(self.get_text())
-
-    def _on_name(self, dd, _pspec):
-        if dd.get_selected() > 0:
-            self.entry.set_text(dd.get_selected_item().get_string())
-            dd.set_selected(0)
-
-    def _on_pick(self, btn, _pspec):
-        if self._updating:
-            return
-        c = btn.get_rgba()
-        self.entry.set_text(rgb_to_hex(round(c.red * 255), round(c.green * 255),
-                                       round(c.blue * 255)))
 
 
 class StyleDialog(Dialog):
@@ -203,17 +140,15 @@ class StyleDialog(Dialog):
         self.content.append(self.default_check)
 
         frame = Gtk.Frame(label="Attributes")
-        flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE,
-                           max_children_per_line=4, column_spacing=6,
-                           margin_top=6, margin_bottom=6, margin_start=6,
-                           margin_end=6)
+        attr_grid = Gtk.Grid(column_spacing=12, margin_top=6, margin_bottom=6,
+                             margin_start=6, margin_end=6)
         self.attr_checks = {}
-        for a in ATTRIBUTES:
+        for i, a in enumerate(ATTRIBUTES):
             cb = Gtk.CheckButton(label=a, active=a in style.attrs)
             cb.connect("toggled", lambda *_: self._update_preview())
             self.attr_checks[a] = cb
-            flow.append(cb)
-        frame.set_child(flow)
+            attr_grid.attach(cb, i % 3, i // 3, 1, 1)
+        frame.set_child(attr_grid)
         self.content.append(frame)
 
         self.result_label = Gtk.Label(xalign=0, selectable=True, wrap=True)
