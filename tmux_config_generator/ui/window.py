@@ -208,6 +208,8 @@ class MainWindow(Gtk.ApplicationWindow):
     def update_preview(self):
         self._preview_pending = False
         self.preview.get_buffer().set_text(self.text())
+        for page in self.pages:
+            page.refresh_preview()
         n = len(self.cfg.values)
         self.count_label.set_label(
             f"{n} option{'s' if n != 1 else ''}, {len(self.cfg.bindings)} "

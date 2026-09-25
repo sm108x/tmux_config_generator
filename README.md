@@ -12,6 +12,7 @@ A cross-platform GTK 4 desktop app for building a `tmux.conf` without memorising
   - Get warnings when a key is already bound or when it overrides a tmux default.
   - Browse all 260 tmux default bindings, then override or unbind them.
   - Unbind single keys or whole tables (`unbind -a`).
+- **Visual preview:** the Status Line, Window List, Windows, Panes, Copy Mode & Menus and Alerts tabs show a live mock-up of a tmux client. It uses a sample session and redraws as you edit. It renders your formats (`#{...}`, conditionals, `#[...]` styles, strftime codes), colours and attributes; the status line layout (lengths, justification, multiple lines, custom `status-format`); and pane borders (line types, border status lines, arrows). Scenes cover normal use, copy mode (selection, search matches, mark), menus, popups, messages, the command prompt, clock mode, display-panes and alerts. The scene switches automatically when you edit a related option, and there's a light/dark terminal toggle.
 - **Live preview** of the generated file.
 - **Import** an existing `tmux.conf`. `set`, `bind` and `unbind` lines load into the editor. Everything else (hooks, `if-shell`, plugins…) is kept verbatim on the Custom tab.
 - **Check with tmux**, if tmux is installed. The file is loaded on a throwaway tmux server (`tmux -L …`), so tmux reports bad option names and values. Custom-tab lines are only syntax-checked, never run.
@@ -115,6 +116,7 @@ Layout:
 | `tmux_config_generator/styles.py` | Style strings and colour parsing |
 | `tmux_config_generator/default_bindings.py`, `commands.py` | tmux 3.4 default key bindings and command reference |
 | `tmux_config_generator/presets.py` | Command presets and quick-start presets |
+| `tmux_config_generator/render/` | tmux format expander and screen mock-up used by the visual preview |
 | `tmux_config_generator/validate.py` | Checks a config with a real tmux binary |
 | `tmux_config_generator/launcher.py` | Adds the app to the desktop's application menu |
 | `tmux_config_generator/data/` | Desktop file, AppStream metainfo, icons |

@@ -6,7 +6,9 @@ from gi.repository import Gtk
 
 from ..config import INDEX_ONLY, Config
 from ..options import Option, options_in
+from ..render.screen import effective_values, scene_for_option
 from .dialogs import ColourEntry, KeyCaptureDialog, StyleDialog
+from .preview import PreviewPanel
 
 SCOPE_LABELS = {"server": "server", "session": "session", "window": "window",
                 "pane": "pane"}
@@ -219,9 +221,16 @@ class OptionRow(Gtk.ListBoxRow):
         return q in self.opt.name or q in self.opt.description.lower()
 
 
-class OptionPage(Gtk.ScrolledWindow):
+# Categories that get a live preview, and the scene each starts on.
+PREVIEW_SCENES = {
+    "status": "normal", "winlist": "normal", "windows": "normal",
+    "panes": "normal", "copy": "copy", "alerts": "alerts",
+}
+
+
+class OptionPage(Gtk.Box):
     def __init__(self, category: str, cfg: Config, on_change):
-        super().__init__(hscrollbar_policy=Gtk.PolicyType.NEVER, vexpand=True)
+        super().__init__(orientation=Gtk.Orientation.VERTICAL, vexpand=True)
         self.listbox = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE,
                                    margin_top=12, margin_bottom=12,
                                    margin_start=12, margin_end=12)
@@ -231,7 +240,32 @@ class OptionPage(Gtk.ScrolledWindow):
             self.listbox.append(r)
         self.query = ""
         self.listbox.set_filter_func(lambda row: row.matches(self.query))
-        self.set_child(self.listbox)
+        scroll = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER,
+                                    vexpand=True)
+        scroll.set_child(self.listbox)
+
+        self.preview = None
+        if category in PREVIEW_SCENES:
+            self.preview = PreviewPanel(lambda: effective_values(cfg),
+                                        PREVIEW_SCENES[category])
+            for r in self.rows:
+                scene = scene_for_option(r.opt.name)
+                if scene:
+                    focus = Gtk.EventControllerFocus()
+                    focus.connect("enter", lambda _c, s=scene: self.preview.set_scene(s))
+                    r.add_controller(focus)
+            paned = Gtk.Paned(orientation=Gtk.Orientation.VERTICAL,
+                              position=300, wide_handle=True,
+                              shrink_start_child=False, shrink_end_child=False)
+            paned.set_start_child(self.preview)
+            paned.set_end_child(scroll)
+            self.append(paned)
+        else:
+            self.append(scroll)
+
+    def refresh_preview(self):
+        if self.preview:
+            self.preview.refresh()
 
     def refresh(self):
         for r in self.rows:
